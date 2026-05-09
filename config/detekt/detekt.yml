@@ -1,0 +1,59 @@
+# Detekt configuration for appstats-android.
+# Inherits the bundled defaults; overrides what is unfit for SDK code.
+# SDKs intentionally catch broad Throwable in a few places (crash reporters,
+# atomic write paths) because a leaking exception there could crash the host app.
+
+build:
+  maxIssues: 0
+
+style:
+  # SDK code has a lot of intentional integers (HTTP codes, byte sizes,
+  # protocol constants). The right tradeoff here is to disable MagicNumber
+  # globally — the hand-written constants in NetworkManager and
+  # AppStatsConfiguration provide the necessary documentation.
+  MagicNumber:
+    active: false
+  ReturnCount:
+    active: true
+    max: 5
+  ForbiddenComment:
+    active: false # we use TODO/FIXME for tracked deferrals
+  WildcardImport:
+    active: true
+  ThrowsCount:
+    active: true
+    max: 8 # NetworkManager has many distinct error paths; surfacing each is intentional.
+
+complexity:
+  TooManyFunctions:
+    active: true
+    thresholdInClasses: 30
+    thresholdInObjects: 30
+    thresholdInFiles: 30
+  LongMethod:
+    threshold: 100
+  LongParameterList:
+    # The internal EventCollector has a lot of test seams, all of which have defaults.
+    # Public API LongParameterList is enforced via @JvmOverloads convention review.
+    active: false
+
+empty-blocks:
+  # The default Application.ActivityLifecycleCallbacks interface defines 7 methods
+  # we have no business in. Empty overrides are the documented pattern.
+  EmptyFunctionBlock:
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    # SDK boundaries deliberately catch Throwable to guarantee the host app is never
+    # taken down by an SDK-internal failure. The generic catches are paired with
+    # logging at the call site.
+    active: false
+  TooGenericExceptionThrown:
+    active: true
+
+naming:
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][_A-Z0-9]*'
+
+# ktlint owns formatting; we don't enable detekt-formatting (which is a separate plugin).

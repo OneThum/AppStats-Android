@@ -1,0 +1,50 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: ktlint
+        run: ./gradlew :appstats:ktlintCheck
+
+      - name: detekt
+        run: ./gradlew :appstats:detekt
+
+      - name: Unit tests
+        run: ./gradlew :appstats:testDebugUnitTest
+
+      - name: Assemble release AAR
+        run: ./gradlew :appstats:assembleRelease
+
+      - name: Upload AAR artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstats-android-aar
+          path: appstats/build/outputs/aar/*.aar
+          if-no-files-found: error
+          retention-days: 14

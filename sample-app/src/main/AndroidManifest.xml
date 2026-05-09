@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".SampleApplication"
+        android:label="AppStats Sample"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+
+        <!-- Manifest meta-data the SDK initializer reads to auto-configure. -->
+        <meta-data
+            android:name="com.onethumsoftware.appstats.API_KEY"
+            android:value="as_live_replace_me_with_a_dev_key" />
+        <meta-data
+            android:name="com.onethumsoftware.appstats.AUTO_TRACK_SCREENS"
+            android:value="true" />
+        <meta-data
+            android:name="com.onethumsoftware.appstats.FLUSH_INTERVAL_SECONDS"
+            android:value="30" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

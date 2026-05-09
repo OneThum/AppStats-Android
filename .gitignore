@@ -1,0 +1,24 @@
+.gradle/
+build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.kotlin/
+
+# OS
+.DS_Store
+
+# Logs / coverage
+*.log
+**/logs/
+
+# Bundle
+*.hprof
+
+# Wrapper jar handled by `gradle wrapper`
+!gradle/wrapper/gradle-wrapper.jar
+
+# Sample app secrets
+sample-app/src/main/assets/local-*.properties

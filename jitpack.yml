@@ -1,0 +1,12 @@
+# JitPack build configuration for appstats-android.
+# JitPack uses this file to know which JDK to provision and which Gradle task to run.
+# After Maven Central graduation (see CHANGELOG / Phase 9), JitPack remains as a
+# fallback distribution channel, but Central is the canonical source.
+jdk:
+  - openjdk17
+
+before_install:
+  - sdk install gradle 8.10.2 || true
+
+install:
+  - ./gradlew :appstats:publishToMavenLocal -PVERSION_NAME=$VERSION --no-daemon --stacktrace
