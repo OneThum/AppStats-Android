@@ -6,7 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - TBD
+## [0.1.1] - 2026-05-09
+
+### Fixed
+
+- Default `RELEASE_SIGNING_ENABLED=false` so JitPack builds (which lack GPG keys)
+  succeed. The Maven Central release workflow opts back in via
+  `-PRELEASE_SIGNING_ENABLED=true`.
+
+## [0.1.0] - 2026-05-09
 
 ### Added
 

@@ -38,7 +38,7 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts
 dependencies {
-    implementation("com.github.OneThum:appstats-android:0.1.0")
+    implementation("com.github.OneThum:appstats-android:0.1.1")
 }
 ```
 
