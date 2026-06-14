@@ -42,6 +42,9 @@ dependencies {
 }
 ```
 
+> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.12`),
+> so the JitPack version string matches the tag name exactly. Use `1.0.12`, not `v1.0.12`.
+
 ### Repository & JitPack artifact id (May 2026)
 
 The public GitHub repository is **`OneThum/AppStats-Android`** (older links to `OneThum/appstats-android` redirect).  
