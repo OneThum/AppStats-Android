@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.12] - 2026-06-13
+
+### Changed
+
+- **Version alignment**: the Android SDK now versions in lockstep with the Swift SDK
+  (`OneThum/AppStats-iOS`). This release jumps from `0.1.2` to `1.0.12` so that a given
+  version number identifies the same protocol surface and behavior on both platforms.
+  No functional or wire-protocol changes — both SDKs continue to conform to protocol
+  v1 (`/v1/ingest`) and are distinguished server-side by `X-AS-SDK-Platform`
+  (`kotlin` vs `swift`), not by version number.
+
+## [0.1.2] - 2026-05-09
+
+### Added
+
+- **`AppStats.isConfigured()`** — public predicate for whether **`configure`** has run (stable for bridge code).
+- **`AppStats.identify(userId)`** — sets sticky **`user_id`** + **`signed_in`**; **`null`** / blank clears **`user_id`** and sets **`signed_in`** to **`false`**.
+
+### Changed
+
+- **`setUserProperty(key, null)`** removes **`key`** from the sticky map so it is omitted from payloads (previously the key could remain with JSON **`null`**).
+
+### Documentation
+
+- README: Compose / single-activity guidance for **`autoTrackScreens`**, **`setUserProperty`** semantics, dotted **`track`** names, JitPack → Maven Central migration + ProGuard note.
+
 ## [0.1.1] - 2026-05-09
 
 ### Fixed
@@ -29,5 +55,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `androidx.startup`-based opt-in auto-configuration via manifest meta-data.
 - `WorkManager` expedited background-flush worker to finish in-flight sends after
   backgrounding.
-- Distributed via JitPack (`com.github.OneThum:AppStats-Android:0.1.0`). Maven
+- Distributed via JitPack (`com.github.OneThum:appstats-android:0.1.0`). Maven
   Central graduation tracked in [Phase 9](#).

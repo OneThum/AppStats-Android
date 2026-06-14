@@ -38,7 +38,7 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts
 dependencies {
-    implementation("com.github.OneThum:AppStats-Android:0.1.1")
+    implementation("com.github.OneThum:AppStats-Android:1.0.12")
 }
 ```
 
@@ -53,7 +53,7 @@ After the Sonatype Central Portal namespace `com.onethumsoftware` is verified an
 
 ```kotlin
 dependencies {
-    implementation("com.onethumsoftware:appstats-android:1.0.0")
+    implementation("com.onethumsoftware:appstats-android:1.0.12")
 }
 ```
 
@@ -62,10 +62,24 @@ dependencies {
 1. **Namespace**: In [Central Portal](https://central.sonatype.com/), claim `com.onethumsoftware` (DNS TXT verification as documented by Sonatype).
 2. **Signing**: Create a dedicated GPG key for artifacts; publish the public key; store private key + passphrase in GitHub Actions secrets for the **AppStats-Android** repo (names depend on `release.yml`; typically along the lines of `SIGNING_KEY`, `SIGNING_PASSWORD`).
 3. **Publishing**: The Android repo uses the Vanniktech Maven Publish plugin with `RELEASE_SIGNING_ENABLED=true` only in the release workflow (JitPack builds leave signing off).
-4. **Release**: Tag `v1.0.0` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
-5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.0` (or newer).
+4. **Release**: Tag `v1.0.12` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
+5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.12` (or newer).
 
 Until these steps are complete, stay on **JitPack** coordinates above.
+
+#### Consumer migration: JitPack → Maven Central
+
+When **`com.onethumsoftware:appstats-android`** is published on Central, switch the Gradle
+coordinate only — the same AAR ships **`consumer-rules.pro`**, so **R8 / ProGuard integration does
+not change** (no extra `-keep` rules required beyond what the SDK merges).
+
+| Channel | Gradle dependency |
+| --- | --- |
+| JitPack | `implementation("com.github.OneThum:AppStats-Android:<tag>")` |
+| Maven Central | `implementation("com.onethumsoftware:appstats-android:<version>")` |
+
+Repository block still needs `google()` + `mavenCentral()`; drop **`https://jitpack.io`** once
+nothing else in the app uses JitPack.
 
 ## Quick start
 
@@ -102,16 +116,42 @@ class MyApplication : Application() {
 The SDK initializes via `androidx.startup` on the first content provider
 boot, with no explicit `Application.onCreate` call required.
 
+### Compose / single-activity apps
+
+With **`autoTrackScreens = true`** (the default, including manifest **`AUTO_TRACK_SCREENS`**),
+the SDK registers **`ActivityLifecycleCallbacks`** and emits a **`screen_view`** for every
+resumed activity title. That is often **too noisy** for **Compose** or **single-activity** shells
+where one `Activity` hosts many logical screens.
+
+Prefer **`autoTrackScreens = false`** and call **`AppStats.trackScreen("YourRoute")`** from your
+navigator (e.g. `NavController` `DisposableEffect`) when you want a meaningful screen name.
+
 ## API surface
 
 ```kotlin
 AppStats.configure(context, apiKey, autoTrackScreens = true, flushInterval = 30.seconds)
+AppStats.isConfigured()
+AppStats.identify(userId)              // null / blank clears sticky user_id + sets signed_in false
 AppStats.track("purchase_completed", mapOf("amount" to 9.99, "currency" to "USD"))
-AppStats.trackScreen("HomeView")          // for Compose / non-Activity navigation
-AppStats.flush()                          // fire-and-forget
+AppStats.trackScreen("HomeView")       // Compose / non-Activity navigation
+AppStats.flush()                       // fire-and-forget
 suspend fun shutdown() = AppStats.flushAsync()
 AppStats.setUserProperty("plan", "pro")
+AppStats.setUserProperty("plan", null) // removes sticky key — see below
 ```
+
+### Sticky user properties (`setUserProperty`)
+
+- Values are merged into the JSON **`properties`** object on **every** subsequent event (including
+  automatic lifecycle events), unless overridden per event via **`track`** (event keys win on merge).
+- Passing **`null`** as the value **removes that key** from the sticky map so it **does not appear**
+  on later payloads. It does **not** send JSON `null` as the property value.
+
+### Custom event names (`track`)
+
+Event names are opaque strings. Namespaced names such as **`game.level_complete`** or
+**`notification.opened`** match common backend-style analytics and ingest as **`custom`** events
+with **`event_name`** set to the full string (including dots).
 
 ## Architecture
 
@@ -138,8 +178,12 @@ server-side and uses only country/city granularity.
 
 ## Versioning
 
-The Android SDK uses independent semver from the Swift SDK. Both conform to the
-same wire-protocol version (`/v1/ingest`).
+The Android SDK version is kept **in lockstep with the Swift SDK**
+([OneThum/AppStats-iOS](https://github.com/OneThum/AppStats-iOS)): a given version
+number (e.g. `1.0.12`) identifies the same protocol surface and behavior on both
+platforms. Both conform to the same wire-protocol version (`/v1/ingest`); the
+producer is distinguished server-side by the `X-AS-SDK-Platform` header
+(`kotlin` vs `swift`), not by the version number.
 
 ## Contributing
 

@@ -39,7 +39,25 @@ jobs:
                     :appstats:assembleRelease \
                     -PVERSION_NAME=${{ steps.version.outputs.version }} --stacktrace
 
+      # Maven Central is optional: only publish when credentials/signing secrets are
+      # configured. Until the Central namespace is verified, consumers use JitPack, which
+      # builds straight from the git tag and does not depend on this job.
+      - name: Detect Maven Central credentials
+        id: mvncheck
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          SIGNING_IN_MEMORY_KEY: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+        run: |
+          if [ -n "$MAVEN_CENTRAL_USERNAME" ] && [ -n "$SIGNING_IN_MEMORY_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Maven Central credentials present — will publish."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Maven Central credentials not configured — skipping Central publish. JitPack consumers are unaffected; the GitHub release + AAR are still created."
+          fi
+
       - name: Publish to Maven Central
+        if: steps.mvncheck.outputs.enabled == 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

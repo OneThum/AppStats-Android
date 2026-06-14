@@ -32,6 +32,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.jvm.JvmStatic
 import kotlin.time.Duration
 
 /**
@@ -49,6 +50,8 @@ import kotlin.time.Duration
  * ```
  *
  * After configuration, all public API methods are safe to call from any thread.
+ *
+ * Use `AppStats.isConfigured()` to guard bridge layers without duplicating API-key checks.
  *
  * The SDK auto-tracks app lifecycle (`session_start` / `session_end`),
  * screen views (when [AppStatsConfiguration.autoTrackScreens] is true), and
@@ -138,7 +141,13 @@ public object AppStats {
         instance.flushNow()
     }
 
-    /** Set a sticky property included with every subsequent event. */
+    /**
+     * Set a sticky property merged into the `properties` object of every subsequent event.
+     *
+     * Passing **`null` for [value] removes [key] from the sticky map**, so it no longer appears
+     * on outgoing payloads. (Event-specific properties passed to [track] may still set the same
+     * key per event.)
+     */
     @AnyThread
     public fun setUserProperty(
         key: String,
@@ -148,9 +157,36 @@ public object AppStats {
         instance.scope.launch { instance.setUserProperty(key, value) }
     }
 
+    /**
+     * Associates the current user for analytics using sticky properties **`user_id`** (string) and
+     * **`signed_in`** (boolean). Pass **`null`** or a blank string to clear identity: **`user_id`**
+     * is removed and **`signed_in`** is set to **`false`**.
+     *
+     * Avoid overwriting those keys manually via [setUserProperty] unless you intend to override
+     * this behavior.
+     */
+    @AnyThread
+    @JvmStatic
+    public fun identify(userId: String?) {
+        val instance = instanceRef.get() ?: return
+        instance.scope.launch {
+            if (userId.isNullOrBlank()) {
+                instance.setUserProperty("user_id", null)
+                instance.setUserProperty("signed_in", false)
+            } else {
+                instance.setUserProperty("user_id", userId)
+                instance.setUserProperty("signed_in", true)
+            }
+        }
+    }
+
+    /** `true` after [configure] has successfully claimed the singleton (even while init is still running). */
+    @AnyThread
+    @JvmStatic
+    public fun isConfigured(): Boolean = instanceRef.get() != null
+
     /** Used internally and by tests. */
     internal val sdkVersion: String get() = SdkInfo.version
-    internal val isConfigured: Boolean get() = instanceRef.get() != null
 
     /** Test-only escape hatch. Not part of the stable API. */
     internal fun resetForTests() {
@@ -360,7 +396,13 @@ public object AppStats {
             key: String,
             value: Any?,
         ) {
-            userPropsMutex.withLock { userProps[key] = value }
+            userPropsMutex.withLock {
+                if (value == null) {
+                    userProps.remove(key)
+                } else {
+                    userProps[key] = value
+                }
+            }
         }
 
         private suspend fun mergedProps(extras: Map<String, Any?>): Map<String, Any?> {
