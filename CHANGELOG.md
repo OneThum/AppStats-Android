@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-08-11
+
+### Added
+
+- Sticky user properties set via `setUserProperty`/`identify` are now persisted to disk (`StorageManager.saveUserProperties`/`loadUserProperties`) and reloaded on `initialize()`, so they survive a cold relaunch without every caller re-setting them on every launch. (Previously they lived only in the in-memory `userProps` map for the life of the process — attachment to events already worked correctly, this only adds cross-restart persistence, matching the equivalent fix shipped in the Swift SDK.)
+
+### Fixed
+
+- Closed a race where `setUserProperty` called immediately after `configure()` could run on a different `Dispatchers.Default` thread than `initialize()` and see the `StorageManager` reference still null, silently skipping the disk write with no retry. `initialize()` now does a catch-up persist once storage is assigned.
+
 ## [1.0.12] - 2026-06-13
 
 ### Changed

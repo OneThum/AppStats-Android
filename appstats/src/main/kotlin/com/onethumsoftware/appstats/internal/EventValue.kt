@@ -48,6 +48,16 @@ internal sealed interface EventValue {
     @Serializable
     object NullValue : EventValue
 
+    /** Unwraps back to the underlying value, for merging persisted sticky properties into a `Map<String, Any?>`. */
+    fun unwrap(): Any? =
+        when (this) {
+            is StringValue -> value
+            is LongValue -> value
+            is DoubleValue -> value
+            is BoolValue -> value
+            is NullValue -> null
+        }
+
     companion object {
         /**
          * Best-effort coercion from arbitrary user input to a primitive event value.

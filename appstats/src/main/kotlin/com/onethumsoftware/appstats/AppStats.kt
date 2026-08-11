@@ -17,6 +17,7 @@ import com.onethumsoftware.appstats.internal.DeviceInfo
 import com.onethumsoftware.appstats.internal.EventCollector
 import com.onethumsoftware.appstats.internal.EventFactory
 import com.onethumsoftware.appstats.internal.EventType
+import com.onethumsoftware.appstats.internal.EventValue
 import com.onethumsoftware.appstats.internal.Logger
 import com.onethumsoftware.appstats.internal.NetworkManager
 import com.onethumsoftware.appstats.internal.ScreenTracker
@@ -205,6 +206,8 @@ public object AppStats {
 
         @Volatile private var factory: EventFactory? = null
 
+        @Volatile private var storage: StorageManager? = null
+
         @Volatile private var screenTracker: ScreenTracker? = null
 
         @Volatile private var crashReporter: CrashReporter? = null
@@ -242,6 +245,17 @@ public object AppStats {
 
                 this.factory = factory
                 this.collector = collector
+                this.storage = storage
+
+                // Restore sticky properties set in a previous session, without clobbering
+                // any already set on this instance (e.g. a setUserProperty call that raced ahead of us).
+                loadPersistedUserProperties(storage)
+
+                // `scope` runs on Dispatchers.Default (multi-threaded), so a setUserProperty()
+                // call can race ahead of this point and find `this.storage` still null — its
+                // in-memory write still lands (userProps isn't gated), but the disk write it
+                // attempted was a no-op. Catch up now that storage is definitely assigned.
+                persistUserProperties()
 
                 // Crash reporter must be installed BEFORE any other Throwable can fire.
                 val reporter = CrashReporter(context) { sessionId }.apply { install() }
@@ -403,11 +417,35 @@ public object AppStats {
                     userProps[key] = value
                 }
             }
+            persistUserProperties()
         }
 
         private suspend fun mergedProps(extras: Map<String, Any?>): Map<String, Any?> {
             val sticky = userPropsMutex.withLock { userProps.toMap() }
             return if (sticky.isEmpty()) extras else sticky + extras
+        }
+
+        private suspend fun loadPersistedUserProperties(storage: StorageManager) {
+            try {
+                val persisted = storage.loadUserProperties()
+                userPropsMutex.withLock {
+                    for ((key, value) in persisted) {
+                        if (key !in userProps) userProps[key] = value.unwrap()
+                    }
+                }
+            } catch (t: Throwable) {
+                Logger.warning("Failed to load persisted user properties", t)
+            }
+        }
+
+        private suspend fun persistUserProperties() {
+            val storage = storage ?: return
+            try {
+                val snapshot = userPropsMutex.withLock { userProps.toMap() }
+                storage.saveUserProperties(snapshot.mapValues { EventValue.from(it.value) })
+            } catch (t: Throwable) {
+                Logger.warning("Failed to persist user properties", t)
+            }
         }
 
         private fun startFlushTimer() {

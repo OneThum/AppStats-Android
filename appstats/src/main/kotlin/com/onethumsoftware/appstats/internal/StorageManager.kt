@@ -8,6 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -18,6 +21,7 @@ internal class StorageManager(
 ) {
     private val storageDir: File = File(context.filesDir, STORAGE_DIR_NAME)
     private val eventsFile: File = File(storageDir, EVENTS_FILE_NAME)
+    private val userPropertiesFile: File = File(storageDir, USER_PROPERTIES_FILE_NAME)
     private val mutex = Mutex()
 
     /**
@@ -91,6 +95,51 @@ internal class StorageManager(
             }
         }
 
+    /** Save the entire sticky user-property set to disk, atomically (overwrites existing). */
+    suspend fun saveUserProperties(properties: Map<String, EventValue>): Unit =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                ensureDirectory() ?: return@withLock
+                val encoded =
+                    runCatching { json.encodeToString(UserPropertiesSerializer, properties) }
+                        .onFailure { Logger.warning("Failed to encode user properties for storage", it) }
+                        .getOrNull() ?: return@withLock
+
+                val tmp = File(storageDir, USER_PROPERTIES_FILE_NAME + TMP_SUFFIX)
+                try {
+                    tmp.outputStream().use { out ->
+                        out.write(encoded.toByteArray(Charsets.UTF_8))
+                        out.flush()
+                        out.fd.sync()
+                    }
+                    if (!tmp.renameTo(userPropertiesFile)) {
+                        userPropertiesFile.outputStream().use { it.write(tmp.readBytes()) }
+                        tmp.delete()
+                    }
+                } catch (t: Throwable) {
+                    Logger.warning("Atomic save of user properties failed", t)
+                    tmp.delete()
+                }
+            }
+        }
+
+    /** Load persisted sticky user properties. Returns an empty map if missing or corrupted. */
+    suspend fun loadUserProperties(): Map<String, EventValue> =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                if (!userPropertiesFile.exists()) return@withLock emptyMap()
+                val raw =
+                    runCatching { userPropertiesFile.readText(Charsets.UTF_8) }
+                        .onFailure { Logger.warning("Failed to read persisted user properties", it) }
+                        .getOrNull() ?: return@withLock emptyMap()
+                runCatching { json.decodeFromString(UserPropertiesSerializer, raw) }
+                    .onFailure { t ->
+                        Logger.warning("Persisted user properties were corrupted; discarding", t)
+                        userPropertiesFile.delete()
+                    }.getOrDefault(emptyMap())
+            }
+        }
+
     private fun ensureDirectory(): File? {
         if (storageDir.exists()) return storageDir
         return if (storageDir.mkdirs()) {
@@ -113,9 +162,11 @@ internal class StorageManager(
     internal companion object {
         const val STORAGE_DIR_NAME: String = "appstats"
         const val EVENTS_FILE_NAME: String = "events.json"
+        const val USER_PROPERTIES_FILE_NAME: String = "user_properties.json"
         const val TMP_SUFFIX: String = ".tmp"
         const val MAX_STORAGE_BYTES: Long = 10L * 1024L * 1024L
 
-        private val EventListSerializer = kotlinx.serialization.builtins.ListSerializer(Event.serializer())
+        private val EventListSerializer = ListSerializer(Event.serializer())
+        private val UserPropertiesSerializer = MapSerializer(String.serializer(), EventValueSerializer)
     }
 }
