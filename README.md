@@ -38,12 +38,12 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts
 dependencies {
-    implementation("com.github.OneThum:AppStats-Android:1.0.12")
+    implementation("com.github.OneThum:AppStats-Android:1.0.14")
 }
 ```
 
-> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.12`),
-> so the JitPack version string matches the tag name exactly. Use `1.0.12`, not `v1.0.12`.
+> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.14`),
+> so the JitPack version string matches the tag name exactly. Use `1.0.14`, not `v1.0.14`.
 
 ### Repository & JitPack artifact id (May 2026)
 
@@ -56,7 +56,7 @@ After the Sonatype Central Portal namespace `com.onethumsoftware` is verified an
 
 ```kotlin
 dependencies {
-    implementation("com.onethumsoftware:appstats-android:1.0.12")
+    implementation("com.onethumsoftware:appstats-android:1.0.14")
 }
 ```
 
@@ -65,8 +65,8 @@ dependencies {
 1. **Namespace**: In [Central Portal](https://central.sonatype.com/), claim `com.onethumsoftware` (DNS TXT verification as documented by Sonatype).
 2. **Signing**: Create a dedicated GPG key for artifacts; publish the public key; store private key + passphrase in GitHub Actions secrets for the **AppStats-Android** repo (names depend on `release.yml`; typically along the lines of `SIGNING_KEY`, `SIGNING_PASSWORD`).
 3. **Publishing**: The Android repo uses the Vanniktech Maven Publish plugin with `RELEASE_SIGNING_ENABLED=true` only in the release workflow (JitPack builds leave signing off).
-4. **Release**: Tag `v1.0.12` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
-5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.12` (or newer).
+4. **Release**: Tag `v1.0.14` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
+5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.14` (or newer).
 
 Until these steps are complete, stay on **JitPack** coordinates above.
 
@@ -183,10 +183,17 @@ server-side and uses only country/city granularity.
 
 The Android SDK version is kept **in lockstep with the Swift SDK**
 ([OneThum/AppStats-iOS](https://github.com/OneThum/AppStats-iOS)): a given version
-number (e.g. `1.0.12`) identifies the same protocol surface and behavior on both
+number (e.g. `1.0.14`) identifies the same protocol surface and behavior on both
 platforms. Both conform to the same wire-protocol version (`/v1/ingest`); the
 producer is distinguished server-side by the `X-AS-SDK-Platform` header
 (`kotlin` vs `swift`), not by the version number.
+
+Lockstep constrains what a version number *means*, not that every release ships on
+both platforms. A fix confined to one platform's host mechanism bumps only that
+platform, and the other simply skips that number — `1.0.13` and `1.0.15` are
+Swift-only (Swift 6 concurrency, and a POSIX signal-handler fix that has no Kotlin
+counterpart), so the Android SDK goes `1.0.12` → `1.0.14` → `1.0.16`. What must never
+happen is the same number meaning different protocol surfaces on the two platforms.
 
 ## Contributing
 
