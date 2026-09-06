@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.17] - 2026-09-06
+
+### Added
+
+- **Native crash and ANR reporting.** A crash in native (NDK/ART) code kills the process without ever producing a Throwable, so `Thread.setDefaultUncaughtExceptionHandler` never sees it — those deaths, and ANRs, were previously invisible to AppStats. `NativeExitReporter` now reads Android's own record of process deaths (`ActivityManager.getHistoricalProcessExitReasons`) on the next launch and replays them as `crash` events, closing the gap against the Swift SDK's POSIX signal handler.
+  - Read from the platform record rather than an in-process signal handler, so the SDK still ships **no native code** (the AAR contains no `.so` for any ABI) and cannot deadlock inside a crashing process the way a signal handler can. The trade is an API floor: this requires **API 30+** (Android 11), and on Android 7–10 native crashes remain unreported.
+  - The signal number is resolved to the same name the Swift SDK reports (`SIGSEGV`, `SIGABRT`, …) using Linux numbering — deliberately not Darwin's, where `SIGBUS` is 10 rather than 7.
+  - ANRs are reported with `exception` set to `ANR`, carrying the platform's thread dump as the stack trace. Native tombstones are protobuf-encoded on API 31+ and are dropped rather than shipped as mojibake; the platform's `description` still carries the summary.
+  - Crashes are attributed to the session that actually died, by matching the recorded exit's pid against a pid → session id record written each launch.
+  - Deliberately excluded: `REASON_CRASH` (a JVM crash, already reported once by the exception handler — reporting both would double-count every Kotlin crash), and ordinary deaths such as low-memory kills and user-requested exits, which are not faults.
+  - The first launch after upgrading adopts the platform's current high-water mark and reports nothing, so the backlog Android already remembers does not arrive as a burst of crashes dated before the SDK was integrated.
+
+No wire-protocol change: `crash` is an existing event type and these events use the existing property set.
+
 ## [1.0.14] - 2026-08-11
 
 ### Added

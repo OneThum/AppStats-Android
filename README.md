@@ -38,12 +38,12 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts
 dependencies {
-    implementation("com.github.OneThum:AppStats-Android:1.0.14")
+    implementation("com.github.OneThum:AppStats-Android:1.0.17")
 }
 ```
 
-> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.14`),
-> so the JitPack version string matches the tag name exactly. Use `1.0.14`, not `v1.0.14`.
+> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.17`),
+> so the JitPack version string matches the tag name exactly. Use `1.0.17`, not `v1.0.17`.
 
 ### Repository & JitPack artifact id (May 2026)
 
@@ -56,7 +56,7 @@ After the Sonatype Central Portal namespace `com.onethumsoftware` is verified an
 
 ```kotlin
 dependencies {
-    implementation("com.onethumsoftware:appstats-android:1.0.14")
+    implementation("com.onethumsoftware:appstats-android:1.0.17")
 }
 ```
 
@@ -65,8 +65,8 @@ dependencies {
 1. **Namespace**: In [Central Portal](https://central.sonatype.com/), claim `com.onethumsoftware` (DNS TXT verification as documented by Sonatype).
 2. **Signing**: Create a dedicated GPG key for artifacts; publish the public key; store private key + passphrase in GitHub Actions secrets for the **AppStats-Android** repo (names depend on `release.yml`; typically along the lines of `SIGNING_KEY`, `SIGNING_PASSWORD`).
 3. **Publishing**: The Android repo uses the Vanniktech Maven Publish plugin with `RELEASE_SIGNING_ENABLED=true` only in the release workflow (JitPack builds leave signing off).
-4. **Release**: Tag `v1.0.14` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
-5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.14` (or newer).
+4. **Release**: Tag `v1.0.17` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
+5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.17` (or newer).
 
 Until these steps are complete, stay on **JitPack** coordinates above.
 
@@ -170,6 +170,7 @@ wire-protocol contract both SDKs implement.
 | `StorageManager` | Atomic JSON file at `filesDir/appstats/events.json`, 10 MB budget. |
 | `ScreenTracker` | `Application.ActivityLifecycleCallbacks`-based auto-tracking. |
 | `CrashReporter` | `Thread.setDefaultUncaughtExceptionHandler` writes a marker, sends on next launch. |
+| `NativeExitReporter` | Reads the platform's own record of process deaths (API 30+) to report native crashes and ANRs, which never reach the JVM handler. |
 | `Lifecycle observer` | `ProcessLifecycleOwner` to emit `session_start` / `session_end`. |
 | `BackgroundFlushWorker` | Expedited `WorkManager` job to finish flushing after backgrounding. |
 
@@ -179,11 +180,36 @@ The SDK collects only what is documented in the protocol spec. No advertising
 identifiers, no contacts, no precise location. IP-based geolocation is performed
 server-side and uses only country/city granularity.
 
+## Crash reporting coverage
+
+Crashes are reported on the **next launch**, not at the moment of death — a dying
+process is not a good place to do network I/O. Two independent sources feed it:
+
+| Kind of death | Source | Works on |
+|---|---|---|
+| Uncaught JVM/Kotlin exception | `Thread.setDefaultUncaughtExceptionHandler` | all supported API levels |
+| Native (NDK/ART) crash — `SIGSEGV`, `SIGABRT`, … | `ActivityManager.getHistoricalProcessExitReasons` | **API 30+** (Android 11) |
+| ANR | `ActivityManager.getHistoricalProcessExitReasons` | **API 30+** (Android 11) |
+
+Native crashes and ANRs are read from the record Android keeps itself, rather than by
+installing a native signal handler. That means the SDK ships **no native code** — the
+AAR contains no `.so` for any ABI — and cannot deadlock inside a crashing process the
+way an in-process signal handler can. The cost is the API floor: on Android 7–10 a
+native crash is still invisible to AppStats, and only JVM crashes are reported.
+
+Deliberately *not* reported as crashes: low-memory kills, user-requested exits, and
+other ordinary process deaths. They are not faults, and folding them into the crash
+metric would bury the real ones. A JVM crash is likewise reported only once, from the
+exception handler, even though the platform records it too.
+
+Crashes are attributed to the session that actually died, not the one that happens to
+be live when the record is read.
+
 ## Versioning
 
 The Android SDK version is kept **in lockstep with the Swift SDK**
 ([OneThum/AppStats-iOS](https://github.com/OneThum/AppStats-iOS)): a given version
-number (e.g. `1.0.14`) identifies the same protocol surface and behavior on both
+number (e.g. `1.0.17`) identifies the same protocol surface and behavior on both
 platforms. Both conform to the same wire-protocol version (`/v1/ingest`); the
 producer is distinguished server-side by the `X-AS-SDK-Platform` header
 (`kotlin` vs `swift`), not by the version number.
@@ -191,12 +217,10 @@ producer is distinguished server-side by the `X-AS-SDK-Platform` header
 Lockstep constrains what a version number *means*, not that every release ships on
 both platforms. A fix confined to one platform's host mechanism bumps only that
 platform, and the other simply skips that number: `1.0.13`, `1.0.15` and `1.0.16` are
-all Swift-only (Swift 6 concurrency, then two POSIX signal-handler fixes in the crash
-reporter, which have no Kotlin counterpart — crash reporting here is a JVM
-`UncaughtExceptionHandler` and installs no signal handlers). The Android SDK is on
-`1.0.14` and will take the next number free at the time of its next release, rather
-than one reserved in advance. What must never happen is the same number meaning
-different protocol surfaces on the two platforms.
+all Swift-only (Swift 6 concurrency, then two POSIX signal-handler fixes that have no
+Kotlin counterpart), and `1.0.17` is Android-only. Each release takes the next number
+free at the time it ships, rather than one reserved in advance. What must never happen
+is the same number meaning different protocol surfaces on the two platforms.
 
 ## Contributing
 

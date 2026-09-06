@@ -19,6 +19,7 @@ import com.onethumsoftware.appstats.internal.EventFactory
 import com.onethumsoftware.appstats.internal.EventType
 import com.onethumsoftware.appstats.internal.EventValue
 import com.onethumsoftware.appstats.internal.Logger
+import com.onethumsoftware.appstats.internal.NativeExitReporter
 import com.onethumsoftware.appstats.internal.NetworkManager
 import com.onethumsoftware.appstats.internal.ScreenTracker
 import com.onethumsoftware.appstats.internal.SdkInfo
@@ -296,6 +297,33 @@ public object AppStats {
                         )
                     collector.collect(event)
                 }
+
+                // Replay process deaths the UncaughtExceptionHandler cannot see: native (NDK)
+                // crashes and ANRs, which kill the process without ever producing a Throwable.
+                // Read from the platform's own record rather than an in-process signal handler
+                // — see NativeExitReporter.
+                // Named argument, not a trailing lambda: the last constructor parameter is the
+                // test seam, so `NativeExitReporter(context) { sessionId }` would bind there.
+                NativeExitReporter(context, sessionIdProvider = { sessionId })
+                    .consumePreviousNativeExits()
+                    .forEach { exit ->
+                        collector.collect(
+                            factory.build(
+                                type = EventType.CRASH,
+                                sessionId = exit.sessionId.ifBlank { sessionId },
+                                properties =
+                                    mapOf(
+                                        "exception" to exit.exception,
+                                        "message" to exit.message,
+                                        // The platform does not name a thread for these; the
+                                        // process died as a whole.
+                                        "thread" to "",
+                                        "timestamp_ms" to exit.timestampMs,
+                                        "stack_trace" to exit.stackTrace,
+                                    ),
+                            ),
+                        )
+                    }
 
                 // Bootstrap session_start + app_launch.
                 val sessionStart =
