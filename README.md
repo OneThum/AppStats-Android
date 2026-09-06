@@ -190,10 +190,13 @@ producer is distinguished server-side by the `X-AS-SDK-Platform` header
 
 Lockstep constrains what a version number *means*, not that every release ships on
 both platforms. A fix confined to one platform's host mechanism bumps only that
-platform, and the other simply skips that number — `1.0.13` and `1.0.15` are
-Swift-only (Swift 6 concurrency, and a POSIX signal-handler fix that has no Kotlin
-counterpart), so the Android SDK goes `1.0.12` → `1.0.14` → `1.0.16`. What must never
-happen is the same number meaning different protocol surfaces on the two platforms.
+platform, and the other simply skips that number: `1.0.13`, `1.0.15` and `1.0.16` are
+all Swift-only (Swift 6 concurrency, then two POSIX signal-handler fixes in the crash
+reporter, which have no Kotlin counterpart — crash reporting here is a JVM
+`UncaughtExceptionHandler` and installs no signal handlers). The Android SDK is on
+`1.0.14` and will take the next number free at the time of its next release, rather
+than one reserved in advance. What must never happen is the same number meaning
+different protocol surfaces on the two platforms.
 
 ## Contributing
 
