@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-09-16
+
+### Fixed
+
+- `CrashReporter`'s JVM crash handler captured `throwable.message` and its rendered stack trace verbatim with no bound. Both are app-authored strings — code routinely builds exception messages by interpolating live state (a value, a URL, a malformed input) — so an unbounded capture could carry incidental PII off the device, and a chained exception's "Caused by:" sections repeat each cause's own message inside the trace too. Both are now capped (1,000 / 4,000 characters) at capture time, matching the equivalent fix in the Swift SDK's `CrashReporter`.
+
 ## [1.0.17] - 2026-09-06
 
 ### Added
@@ -19,10 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The first launch after upgrading adopts the platform's current high-water mark and reports nothing, so the backlog Android already remembers does not arrive as a burst of crashes dated before the SDK was integrated.
 
 No wire-protocol change: `crash` is an existing event type and these events use the existing property set.
-
-### Fixed
-
-- `CrashReporter`'s JVM crash handler captured `throwable.message` and its rendered stack trace verbatim with no bound. Both are app-authored strings — code routinely builds exception messages by interpolating live state (a value, a URL, a malformed input) — so an unbounded capture could carry incidental PII off the device, and a chained exception's "Caused by:" sections repeat each cause's own message inside the trace too. Both are now capped (1,000 / 4,000 characters) at capture time, matching the equivalent fix in the Swift SDK's `CrashReporter`.
 
 ## [1.0.14] - 2026-08-11
 
