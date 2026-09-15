@@ -205,6 +205,12 @@ exception handler, even though the platform records it too.
 Crashes are attributed to the session that actually died, not the one that happens to
 be live when the record is read.
 
+> **Note:** Crash reports include the exception's message and stack trace (each capped —
+> 1,000 and 4,000 characters respectively — at capture time). If your app builds exception
+> messages by interpolating live data — a value, a URL, a key — that text can end up in a
+> crash report. The SDK doesn't add PII of its own, but it can't scrub PII your app puts
+> into an exception's message either.
+
 ## Versioning
 
 The Android SDK version is kept **in lockstep with the Swift SDK**

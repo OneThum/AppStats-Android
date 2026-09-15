@@ -49,7 +49,12 @@ internal class CrashReporter(
         }
     }
 
-    private fun writeMarker(
+    /**
+     * Exposed at `internal` (rather than `private`) so tests in this module can drive it
+     * directly, without installing a real [Thread.UncaughtExceptionHandler] and mutating JVM-
+     * global state.
+     */
+    internal fun writeMarker(
         thread: Thread,
         throwable: Throwable,
     ) {
@@ -60,10 +65,10 @@ internal class CrashReporter(
                 appendLine("CRASH_TIMESTAMP_MS: ${System.currentTimeMillis()}")
                 appendLine("THREAD: ${thread.name}")
                 appendLine("EXCEPTION: ${throwable.javaClass.name}")
-                appendLine("MESSAGE: ${throwable.message ?: ""}")
+                appendLine("MESSAGE: ${(throwable.message ?: "").take(MAX_MESSAGE_LENGTH)}")
                 appendLine("SESSION_ID: ${sessionIdProvider()}")
                 appendLine("STACK_TRACE:")
-                append(sw.toString())
+                append(sw.toString().take(MAX_STACK_TRACE_LENGTH))
             }
         markerFile.writeText(payload, Charsets.UTF_8)
     }
@@ -104,5 +109,15 @@ internal class CrashReporter(
 
     private companion object {
         const val MARKER_FILE_NAME = "crash.marker"
+
+        // `throwable.message` and its stack trace are app-authored strings, not something this
+        // SDK controls the shape of: host code routinely builds exception messages by
+        // interpolating live state (a value, a URL, a malformed input), which can carry
+        // incidental PII. A chained exception's "Caused by:" sections repeat each cause's own
+        // message inside the rendered trace too, so capping only MESSAGE would not bound that.
+        // There's no way to redact this safely, but bounding both limits how much can leave the
+        // device in any one crash report. Mirrors the Swift SDK's CrashReporter caps.
+        const val MAX_MESSAGE_LENGTH = 1000
+        const val MAX_STACK_TRACE_LENGTH = 4000
     }
 }
