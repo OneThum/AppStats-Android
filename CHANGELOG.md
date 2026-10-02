@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.21] - 2026-10-02
+
+### Fixed
+
+- **Upgrading from 1.0.20 or earlier could still crash on Android 11 and below, now at launch.** WorkManager persists pending requests across app updates. A host that had queued the old expedited flush (every backgrounding did), or that crashed while it was pending, kept that request; WorkManager ran it at the next launch, before the app could background and replace it, and hit the same `IllegalStateException("Not implemented")` — on every launch until a backgrounding happened to win the race. The worker is now `FlushWorker` under the unique name `appstats.flush`; a persisted request naming the old `BackgroundFlushWorker` class can no longer be instantiated, so WorkManager drops it without crashing. `configure()` also cancels the old unique work to clear it out of WorkManager's database.
+- 1.0.20's fix alone is not enough for apps that shipped an earlier version — use 1.0.21.
+
+### Changed
+
+- The README's Versioning section now records that `1.0.17` and `1.0.18` mean different things on the two platforms, and how to pick the next number.
+
 ## [1.0.20] - 2026-10-02
 
 ### Fixed

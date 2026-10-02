@@ -11,13 +11,13 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.onethumsoftware.appstats.internal.AppInfo
-import com.onethumsoftware.appstats.internal.BackgroundFlushWorker
 import com.onethumsoftware.appstats.internal.CrashReporter
 import com.onethumsoftware.appstats.internal.DeviceInfo
 import com.onethumsoftware.appstats.internal.EventCollector
 import com.onethumsoftware.appstats.internal.EventFactory
 import com.onethumsoftware.appstats.internal.EventType
 import com.onethumsoftware.appstats.internal.EventValue
+import com.onethumsoftware.appstats.internal.FlushWorker
 import com.onethumsoftware.appstats.internal.Logger
 import com.onethumsoftware.appstats.internal.NativeExitReporter
 import com.onethumsoftware.appstats.internal.NetworkManager
@@ -102,6 +102,10 @@ public object AppStats {
         }
         Logger.debugLoggingEnabled = configuration.debugLogging
         newInstance.initializeAsync()
+        // Housekeeping only: tidy away a request left by a pre-1.0.21 SDK (see FlushWorker).
+        // getInstance throws if the host disabled WorkManager's initializer and hasn't
+        // initialized it yet; that must never break configure().
+        runCatching { FlushWorker.cancelLegacy(appContext) }
     }
 
     /** Track a custom event with optional primitive properties. */
@@ -377,7 +381,7 @@ public object AppStats {
             }
             // Belt-and-suspenders: hand the flush to WorkManager so the OS can finish it
             // even if the process is killed.
-            BackgroundFlushWorker.enqueue(context)
+            FlushWorker.enqueue(context)
         }
 
         suspend fun trackOrQueue(

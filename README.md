@@ -38,12 +38,12 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts
 dependencies {
-    implementation("com.github.OneThum:AppStats-Android:1.0.20")
+    implementation("com.github.OneThum:AppStats-Android:1.0.21")
 }
 ```
 
-> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.20`),
-> so the JitPack version string matches the tag name exactly. Use `1.0.20`, not `v1.0.20`.
+> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.21`),
+> so the JitPack version string matches the tag name exactly. Use `1.0.21`, not `v1.0.21`.
 
 ### Repository & JitPack artifact id (May 2026)
 
@@ -56,7 +56,7 @@ After the Sonatype Central Portal namespace `com.onethumsoftware` is verified an
 
 ```kotlin
 dependencies {
-    implementation("com.onethumsoftware:appstats-android:1.0.20")
+    implementation("com.onethumsoftware:appstats-android:1.0.21")
 }
 ```
 
@@ -65,8 +65,8 @@ dependencies {
 1. **Namespace**: In [Central Portal](https://central.sonatype.com/), claim `com.onethumsoftware` (DNS TXT verification as documented by Sonatype).
 2. **Signing**: Create a dedicated GPG key for artifacts; publish the public key; store private key + passphrase in GitHub Actions secrets for the **AppStats-Android** repo (names depend on `release.yml`; typically along the lines of `SIGNING_KEY`, `SIGNING_PASSWORD`).
 3. **Publishing**: The Android repo uses the Vanniktech Maven Publish plugin with `RELEASE_SIGNING_ENABLED=true` only in the release workflow (JitPack builds leave signing off).
-4. **Release**: Tag `v1.0.20` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
-5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.20` (or newer).
+4. **Release**: Tag `v1.0.21` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
+5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.21` (or newer).
 
 Until these steps are complete, stay on **JitPack** coordinates above.
 
@@ -172,7 +172,7 @@ wire-protocol contract both SDKs implement.
 | `CrashReporter` | `Thread.setDefaultUncaughtExceptionHandler` writes a marker, sends on next launch. |
 | `NativeExitReporter` | Reads the platform's own record of process deaths (API 30+) to report native crashes and ANRs, which never reach the JVM handler. |
 | `Lifecycle observer` | `ProcessLifecycleOwner` to emit `session_start` / `session_end`. |
-| `BackgroundFlushWorker` | Expedited `WorkManager` job to finish flushing after backgrounding. |
+| `FlushWorker` | `WorkManager` job (not expedited) to finish flushing after backgrounding. |
 
 ## Privacy
 
@@ -222,17 +222,30 @@ producer is distinguished server-side by the `X-AS-SDK-Platform` header
 
 Lockstep constrains what a version number *means*, not that every release ships on
 both platforms. A fix confined to one platform's host mechanism bumps only that
-platform, and the other simply skips that number: `1.0.13`, `1.0.15` and `1.0.16` are
-all Swift-only (Swift 6 concurrency, then two POSIX signal-handler fixes that have no
-Kotlin counterpart), and `1.0.17` and `1.0.18` are both Android-only (native crash/ANR
-reporting, then a crash-report PII fix). Each release takes the next number free at the
-time it ships, rather than one reserved in advance. What must never happen is the same
-number meaning different protocol surfaces on the two platforms.
+platform, and the other simply skips that number. Each release takes the next number
+free **on both platforms** at the time it ships, rather than one reserved in advance.
+What must never happen is the same number meaning different protocol surfaces on the
+two platforms.
+
+That rule was broken once, and the two numbers are frozen now, so they stay as they are:
+
+| Version | Swift SDK | Android SDK |
+|---|---|---|
+| `1.0.13`, `1.0.15`, `1.0.16` | Swift 6 concurrency; two POSIX signal-handler fixes | — (skipped) |
+| `1.0.17` | crash-report PII caps; retry-batch eviction fix | native crash and ANR reporting |
+| `1.0.18` | iOS 15 support | crash-report PII caps (Swift's `1.0.17` fix) |
+| `1.0.19` | coarse location in the privacy manifest | — (skipped) |
+| `1.0.20` | — (skipped) | background flush no longer expedited |
+| `1.0.21` | — (skipped) | flush worker renamed so a stale expedited request can't crash |
+
+Before releasing on either platform, check the other platform's latest tag and take
+the next number above both.
 
 `1.0.18`'s fix shipped as a new version rather than amending `1.0.17` directly: JitPack
 had already built and permanently frozen the `1.0.17` artifact (public artifacts become
 immutable 7 days after first publish) before the fix was ready, so a same-version patch
-would never have reached consumers resolving that coordinate.
+would never have reached consumers resolving that coordinate. For the same reason
+`1.0.21` follows `1.0.20` rather than replacing it.
 
 ## Contributing
 
