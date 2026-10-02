@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.20] - 2026-10-02
+
+### Fixed
+
+- **The SDK crashed host apps on Android 11 and below every time they went to the background.** `BackgroundFlushWorker` was enqueued as expedited work. Below API 31 WorkManager runs expedited work as a foreground service and asks the worker for its notification via `getForegroundInfo()`; the worker never overrode it, so AndroidX's default threw `IllegalStateException("Not implemented")` on a `Dispatchers.Default` thread and killed the process. The flush is now ordinary (non-expedited) work, which needs no notification. Android 12+ was unaffected. Present since the worker was introduced; seen in production as a `Not implemented` crash on Android 9 and 11 devices.
+
+1.0.19 is Swift-only and is skipped here (see Versioning in the README).
+
 ## [1.0.18] - 2026-09-16
 
 ### Fixed

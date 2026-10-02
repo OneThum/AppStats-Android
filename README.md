@@ -38,12 +38,12 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts
 dependencies {
-    implementation("com.github.OneThum:AppStats-Android:1.0.18")
+    implementation("com.github.OneThum:AppStats-Android:1.0.20")
 }
 ```
 
-> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.18`),
-> so the JitPack version string matches the tag name exactly. Use `1.0.18`, not `v1.0.18`.
+> **Versions are git tags.** Releases are tagged **without** a `v` prefix (e.g. `1.0.20`),
+> so the JitPack version string matches the tag name exactly. Use `1.0.20`, not `v1.0.20`.
 
 ### Repository & JitPack artifact id (May 2026)
 
@@ -56,7 +56,7 @@ After the Sonatype Central Portal namespace `com.onethumsoftware` is verified an
 
 ```kotlin
 dependencies {
-    implementation("com.onethumsoftware:appstats-android:1.0.18")
+    implementation("com.onethumsoftware:appstats-android:1.0.20")
 }
 ```
 
@@ -65,8 +65,8 @@ dependencies {
 1. **Namespace**: In [Central Portal](https://central.sonatype.com/), claim `com.onethumsoftware` (DNS TXT verification as documented by Sonatype).
 2. **Signing**: Create a dedicated GPG key for artifacts; publish the public key; store private key + passphrase in GitHub Actions secrets for the **AppStats-Android** repo (names depend on `release.yml`; typically along the lines of `SIGNING_KEY`, `SIGNING_PASSWORD`).
 3. **Publishing**: The Android repo uses the Vanniktech Maven Publish plugin with `RELEASE_SIGNING_ENABLED=true` only in the release workflow (JitPack builds leave signing off).
-4. **Release**: Tag `v1.0.18` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
-5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.18` (or newer).
+4. **Release**: Tag `v1.0.20` on **OneThum/AppStats-Android**, run the release workflow, confirm staging → release on Central.
+5. **Consumers**: Update apps from JitPack coordinates to `com.onethumsoftware:appstats-android:1.0.20` (or newer).
 
 Until these steps are complete, stay on **JitPack** coordinates above.
 

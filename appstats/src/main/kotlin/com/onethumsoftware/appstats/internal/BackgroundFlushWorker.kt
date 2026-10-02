@@ -1,4 +1,4 @@
-// Expedited WorkManager job that finishes in-flight flushes after the app is backgrounded.
+// WorkManager job that finishes in-flight flushes after the app is backgrounded.
 // Conceptual equivalent of `UIApplication.beginBackgroundTask` used in
 // sdk/Sources/AppStats/AppStats.swift:handleAppBackground().
 // Copyright © 2026 One Thum Software
@@ -7,8 +7,8 @@ package com.onethumsoftware.appstats.internal
 
 import android.content.Context
 import androidx.work.CoroutineWorker
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 
@@ -37,11 +37,17 @@ internal class BackgroundFlushWorker(
     internal companion object {
         const val UNIQUE_NAME: String = "appstats.background_flush"
 
+        /**
+         * Deliberately not expedited. Below API 31 WorkManager runs expedited work as a
+         * foreground service and calls [getForegroundInfo] for its notification; a worker
+         * that doesn't override it throws `IllegalStateException("Not implemented")` on a
+         * background thread and kills the host app's process on every backgrounding. The
+         * flush is best-effort, so ordinary scheduling is enough and needs no notification.
+         */
+        fun buildRequest(): OneTimeWorkRequest = OneTimeWorkRequestBuilder<BackgroundFlushWorker>().build()
+
         fun enqueue(context: Context) {
-            val request =
-                OneTimeWorkRequestBuilder<BackgroundFlushWorker>()
-                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                    .build()
+            val request = buildRequest()
             // Use REPLACE so a freshly-backgrounded session always gets a fresh attempt.
             WorkManager
                 .getInstance(context)
